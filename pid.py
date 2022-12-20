@@ -81,28 +81,28 @@ kp = col1.slider("Kp Proportional", min_value=0.0, max_value=1.0, value=0.03)
 ki = col2.slider("Ki Integral", min_value=0.0, max_value=1.0, value=0.03)
 kd = col3.slider("Kd Derivative", min_value=0.0, max_value=1.0, value=0.03)
 
-con = pid(kp, ki, kd)
-con.send(None)
+con1 = pid(kp, ki, kd)
+con1.send(None)
 
 
-df = pd.DataFrame({"t": np.linspace(0, tmx, int(tmx))})
-df["sp"] = np.where(df["t"] > tmx / 2, sig, 0)
+df_step = pd.DataFrame({"t": np.linspace(0, tmx, int(tmx))})
+df_step["sp"] = np.where(df_step["t"] > tmx / 2, sig, 0)
 pv = [0]
 mv = [0]
 
-for i, x in enumerate(list(df["t"])):
+for i, x in enumerate(list(df_step["t"])):
     if i == 0:
         continue
-    mv.append(con.send([x, pv[i - 1], df.iloc[i]["sp"]]))
+    mv.append(con1.send([x, pv[i - 1], df_step.iloc[i]["sp"]]))
     pv.append(mv[i] + pv[i - 1])
 
-df["mv"] = mv
-df["pv"] = pv
+df_step["mv"] = mv
+df_step["pv"] = pv
 
-dfm = pd.melt(df, id_vars="t", value_vars=["pv", "sp"])
+dfm_step = pd.melt(df_step, id_vars="t", value_vars=["pv", "sp"])
 
-signal = (
-    alt.Chart(dfm)
+stepsignal = (
+    alt.Chart(dfm_step)
     .mark_line()
     .encode(
         x=alt.X(
@@ -114,4 +114,39 @@ signal = (
     )
 )
 
-st.altair_chart(signal, use_container_width=True)
+st.altair_chart(stepsignal, use_container_width=True)
+
+st.header("Perturbed step signal")
+con2 = pid(kp, ki, kd)
+con2.send(None)
+
+df_rand = pd.DataFrame({"t": np.linspace(0, tmx, int(tmx))})
+df_rand["sp"] = np.where(df_rand["t"] > tmx / 2, sig, 0)
+pv = [0]
+mv = [0]
+
+for i, x in enumerate(list(df_rand["t"])):
+    if i == 0:
+        continue
+    mv.append(con2.send([x, pv[i - 1], df_rand.iloc[i]["sp"]]))
+    pv.append(mv[i] + pv[i - 1] + (np.random.rand() - 0.5) * sig / 4)
+
+df_rand["mv"] = mv
+df_rand["pv"] = pv
+
+dfm_rand = pd.melt(df_rand, id_vars="t", value_vars=["pv", "sp"])
+
+steprand = (
+    alt.Chart(dfm_rand)
+    .mark_line()
+    .encode(
+        x=alt.X(
+            "t",
+            axis=alt.Axis(title="Time"),
+        ),
+        y=alt.Y("value", axis=alt.Axis(title="Signal")),
+        color="variable",
+    )
+)
+
+st.altair_chart(steprand, use_container_width=True)
